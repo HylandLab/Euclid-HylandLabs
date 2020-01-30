@@ -1,3 +1,5 @@
+from sklearn.model_selection import train_test_split as tts
+
 import matplotlib.pyplot as plt
 import pandas as pd
 import pydot
@@ -20,6 +22,8 @@ import tensorflow as tf
 
 import numpy as np
 import logging
+
+
 
 
 
@@ -113,6 +117,7 @@ def encoder_decoder(data):
     print(model.summary())
     return model,encoder_model_inf,decoder_model_inf
 
+trained_model,encoder,decoder = encoder_decoder(train_data)
 """___pred____"""
 def comparePred(index):
     pred=trained_model.predict([np.reshape(train_data["article"][index],(1,en_shape[0],emb_size_all)),np.reshape(train_data["summaries"][index],(1,de_shape[0],emb_size_all))])
@@ -153,7 +158,7 @@ def summarize(article):
         
 #######################################################################################
 
-trained_model,encoder,decoder = encoder_decoder(train_data)
+
 
 def saveModels():
     trained_model.save("%sinit_model"%modelLocation)
