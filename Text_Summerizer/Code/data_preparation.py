@@ -7,7 +7,7 @@ import re
 
 #####################define data sources#################
 # datasource https://cs.nyu.edu/~kcho/DMQA/
-base_folder="C:\\Indranil\\HylandLab\\Code\\github\\Text_Summerizer\\"
+base_folder="C:\\Indranil\\HylandLab\\Code\\gitPublic\\Text_Summerizer\\"
 CNN_data=base_folder+"Data\\cnn\\"
 
 datasets={"cnn":CNN_data}
@@ -49,7 +49,7 @@ def cleantext(text):
     text=re.sub(r"-"," ",text)
     text=re.sub(r"\_"," ",text)
     text=re.sub(r"\d+"," ",text)
-    text=re.sub(r"[$#@%&*!~?%{}()]"," ",text)
+    text=re.sub(r"[$#@%&*!~?%{}().,\`\'\"]"," ",text)
     
     return text
 
@@ -72,16 +72,22 @@ filenames=load_data(datasets["cnn"],data_categories[0])
 
 """----------load the data, sentences and summaries-----------"""
 #for k in range(len(filenames)):
-for k in range(len(filenames[:400])):
+for k in range(len(filenames[:10000])):
         if k%2==0:
             try:
-                data["articles"].append(cleantext(parsetext(datasets["cnn"],data_categories[0],"%s"%filenames[k])))
+                parsed_data=parsetext(datasets["cnn"],data_categories[0],"%s"%filenames[k])
+                cleaned_text=cleantext(parsed_data)
+                #print("cleaned text of article"+ cleaned_text)
+                data["articles"].append(cleaned_text)
             except Exception as e:
                 data["articles"].append("Could not read")
                 print(e)
         else:
             try:
-                data["summaries"].append(cleantext(parsetext(datasets["cnn"],data_categories[0],"%s"%filenames[k])))
+                parsed_summary_data=parsetext(datasets["cnn"],data_categories[0],"%s"%filenames[k])
+                cleaned_summary_text=cleantext(parsed_summary_data)
+                #data["summaries"].append(cleantext(parsetext(datasets["cnn"],data_categories[0],"%s"%filenames[k])))
+                data["summaries"].append(cleaned_summary_text)
             except Exception as e:
                 data["summaries"].append("Could not read")
                 print(e)

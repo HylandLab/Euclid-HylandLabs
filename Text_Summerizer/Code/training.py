@@ -25,9 +25,6 @@ import logging
 
 
 
-
-
-
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s',\
     level=logging.INFO)
 
@@ -35,7 +32,7 @@ logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s',\
 batch_size = 100
 num_classes = 1
 epochs = 5
-hidden_units = emb_size_all
+hidden_units = 10#emb_size_all
 learning_rate = 0.002
 clip_norm = 1.0
 
@@ -52,7 +49,7 @@ de_shape=np.shape(train_data["summaries"][0])
 
 ############################helpers###########################
 
-def encoder_decoder(data):
+def encoder_decoder(input_data):
     print('Encoder_Decoder LSTM...')
    
     """__encoder___"""
@@ -83,7 +80,7 @@ def encoder_decoder(data):
     
     model.compile(loss='categorical_crossentropy',optimizer='adam', metrics=['accuracy'])
 
-    x_train,x_test,y_train,y_test=tts(data["article"],data["summaries"],test_size=0.20)
+    x_train,x_test,y_train,y_test=tts(input_data["article"],input_data["summaries"],test_size=0.20)
     model.fit(x=[x_train,y_train],
               y=y_train,
               batch_size=batch_size,
@@ -129,7 +126,8 @@ def generateText(SentOfVecs):
     SentOfVecs=np.reshape(SentOfVecs,de_shape)
     kk=""
     for k in SentOfVecs:
-        kk=kk+((getWord(k)[0]+" ") if getWord(k)[1]>0.2 else "")
+        kk = kk + label_encoder.inverse_transform([argmax(k)])[0].strip()+" "
+        #kk=kk+((getWord(k)[0]+" ") if getWord(k)[1]>0.2 else "")
     return kk
 
 """___generate summary vectors___"""
@@ -140,7 +138,8 @@ def summarize(article):
     
     #get initial h and c values from encoder
     init_state_val = encoder.predict(article)
-    target_seq = np.zeros((1,1,emb_size_all))
+   # target_seq = np.zeros((1,1,emb_size_all))
+    target_seq = np.zeros((1,1,10))
     
     generated_summary=[]
     while not stop_pred:
@@ -149,7 +148,8 @@ def summarize(article):
         init_state_val= [decoder_h,decoder_c]
         #get most similar word and put in line to be input in next timestep
         #target_seq=np.reshape(model.wv[getWord(decoder_out)[0]],(1,1,emb_size_all))
-        target_seq=np.reshape(decoder_out,(1,1,emb_size_all))
+        #target_seq=np.reshape(decoder_out,(1,1,emb_size_all))
+        target_seq=np.reshape(decoder_out,(1,1,10))
         if len(generated_summary)== de_shape[0]:
             stop_pred=True
             break
@@ -164,13 +164,20 @@ def saveModels():
     trained_model.save("%sinit_model"%modelLocation)
     encoder.save("%sencoder"%modelLocation)
     decoder.save("%sdecoder"%modelLocation)
-
-print(generateText(summarize(train_data["article"][10])))
-print(data["summaries"][10])
-print(data["articles"][10])
+    
+    
+summarized_text=summarize(train_data["article"][21])
+generated_text=generateText(summarized_text)
+print("###############################Generated Text################################")
+print(generated_text)
+print("###############################Actual Corpus##################################")
+print("###############################Summary##################################")
+print(data["summaries"][21])
+print("###############################Article##################################")
+print(data["articles"][21])
 
 del trained_model,encoder,decoder
 
 
-getWord(collect_pred[23])
-model.wv.most_similar(np.zeros((1,emb_size_all)))
+#getWord(collect_pred[23])
+#model.wv.most_similar(np.zeros((1,emb_size_all)))

@@ -1,7 +1,7 @@
 
 from numpy.random import seed
 seed(1)
-base_folder="C:\\Indranil\\HylandLab\\Code\\github\\Text_Summerizer\\"
+base_folder="C:\\Indranil\\HylandLab\\Code\\gitPublic\\Text_Summerizer\\"
 modelLocation=base_folder+"TrainedModels\\"
 
 import gensim as gs
@@ -9,8 +9,8 @@ import pandas as pd
 import numpy as np
 import scipy as sc
 import nltk
-from nltk.tokenize import word_tokenize as wt
-from nltk.tokenize import sent_tokenize as st
+from nltk.tokenize import word_tokenize
+from nltk.tokenize import sent_tokenize
 from numpy import argmax
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import OneHotEncoder
@@ -26,24 +26,38 @@ emb_size_all = 300
 maxcorp=5000
 
 
-def createCorpus(t):
+def createCorpus(article_and_summary_data_dic):
     corpus = []
-    all_sent = []
-    for k in t:
-        for p in t[k]:
-            corpus.append(st(p))
-    for sent in range(len(corpus)):
-        for k in corpus[sent]:
-            all_sent.append(k)
-    for m in range(len(all_sent)):
-        all_sent[m] = wt(all_sent[m])
+    all_sentences = []
+    # this two for loop will extract all the sentences
+    for dictionary_key in article_and_summary_data_dic:
+        for item in article_and_summary_data_dic[dictionary_key]:
+            tokenized_item=sent_tokenize(item) #sent_tokenize is sentence tokenizer
+            corpus.append(tokenized_item)
+    
+    # At this point corpus is a 2D array . 
+    # No. of Row = 2*no.of article/summary files this should b the value of corpus_len
+    # Each row is a vector which contains sentences in that file. In other word it is another array            
+    corpus_len=len(corpus)
+    for file_item in range(corpus_len):
+        for sentence in corpus[file_item]:
+            # We are converting 2D sentence array to 1D sentence array
+            all_sentences.append(sentence)
+    
+    all_setence_len = len(all_sentences)       
+    for m in range(all_setence_len):
+        all_sentences[m] = word_tokenize(all_sentences[m])
     
     all_words=[]
-    for sent in all_sent:
+    for sent in all_sentences:
         hold=[]
         for word in sent:
             hold.append(word.lower())
         all_words.append(hold)
+        
+    # all_words 2D array
+    # No. of row=no. of sentences
+    # i th row will have column, of length equals to no. of words in i th sentence.
     return all_words
 
 
@@ -68,15 +82,20 @@ def word2vecmodel(corpus):
     return model
 
 
-def summonehot(corpus):
+def summonehot(all_summaries):
+    
     allwords=[]
     annotated={}
-    for sent in corpus:
-        for word in wt(sent):
+    for sent in all_summaries:
+        for word in word_tokenize(sent):
             allwords.append(word.lower())
-    print(len(set(allwords)), "unique characters in corpus")
+    
+    #allwords is 1D array contains all words,which are present in all summary files
+    print(len(set(allwords)), "unique characters in all_summaries")
     #maxcorp=int(input("Enter desired number of vocabulary: "))
-    maxcorp=int(len(set(allwords))/1.1)
+    #maxcorp represnts no. of words we want to output.
+   # maxcorp=int(len(set(allwords))/1.1)
+    maxcorp=10
     wordcount = Counter(allwords).most_common(maxcorp)
     allwords=[]
     
@@ -85,7 +104,7 @@ def summonehot(corpus):
         
     allwords=list(set(allwords))
     
-    print(len(allwords), "unique characters in corpus after max corpus cut")
+    print(len(allwords), "unique characters in all_summaries after max all_summaries cut")
     #integer encode
     label_encoder = LabelEncoder()
     integer_encoded = label_encoder.fit_transform(allwords)
@@ -107,13 +126,14 @@ def wordvecmatrix(model,data):
     for k in range(len(data["articles"])):
         art=[]
         summ=[]
-        for word in wt(data["articles"][k].lower()):
+        for word in word_tokenize(data["articles"][k].lower()):
             try:
-                art.append(model.wv.word_vec(word))
+                artval=model.wv.word_vec(word)
+                art.append(artval)
             except Exception as e:
                 print(e)
 
-        for word in wt(data["summaries"][k].lower()):
+        for word in word_tokenize(data["summaries"][k].lower()):
             try:
                 summ.append(onehot[word])
                 #summ.append(model.wv.word_vec(word))
@@ -152,8 +172,8 @@ def max_len(data):
     return min(lenk),max(lenk)
 
 """reshape vectres for Gensim"""
-def reshape(vec):
-    return np.reshape(vec,(1,emb_size_all))
+#def reshape(vec):
+#    return np.reshape(vec,(1,emb_size_all))
 
 def addones(seq):
     return np.insert(seq, [0], [[0],], axis = 0)
@@ -175,7 +195,7 @@ train_data = wordvecmatrix(model,data)
 
 print(len(train_data["article"]), "training articles")
 
-train_data=cutoffSequences(train_data,300,25)
+train_data=cutoffSequences(train_data,300,10)
 
 #seq length stats
 max_len(train_data["article"])
