@@ -81,12 +81,24 @@ def encoder_decoder(input_data):
     model.compile(loss='categorical_crossentropy',optimizer='adam', metrics=['accuracy'])
 
     x_train,x_test,y_train,y_test=tts(input_data["article"],input_data["summaries"],test_size=0.20)
-    model.fit(x=[x_train,y_train],
+    history=model.fit(x=[x_train,y_train],
               y=y_train,
               batch_size=batch_size,
               epochs=epochs,
               verbose=1,
               validation_data=([x_test,y_test], y_test))
+    # list all data in history
+    print(history.history.keys())
+    # summarize history for accuracy
+    plt.plot(history.history['acc'])
+    plt.plot(history.history['val_acc'])
+    plt.title('model accuracy')
+    plt.ylabel('accuracy')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'test'], loc='upper left')
+    plt.show()
+    
+    
     
     """_________________inference mode__________________"""
     encoder_model_inf = Model(encoder_inputs,encoder_states)
@@ -168,13 +180,14 @@ def saveModels():
     
 summarized_text=summarize(train_data["article"][21])
 generated_text=generateText(summarized_text)
-print("###############################Generated Text################################")
-print(generated_text)
-print("###############################Actual Corpus##################################")
-print("###############################Summary##################################")
-print(data["summaries"][21])
-print("###############################Article##################################")
-print(data["articles"][21])
+#print("###############################Generated Text################################")
+#print(summarized_text)
+#print(generated_text)
+#print("###############################Actual Corpus##################################")
+#print("###############################Summary##################################")
+#print(data["summaries"][21])
+#print("###############################Article##################################")
+#print(data["articles"][21])
 
 del trained_model,encoder,decoder
 
