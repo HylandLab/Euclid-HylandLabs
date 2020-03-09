@@ -16,26 +16,63 @@ stop = stopwords.words('english')
 #PRINT VERSION!!!
 tf.__version__
 
-train = pd.read_csv('reviews.csv')
+#Load a file content
+def LoadFile(filename):
+    train = pd.read_csv(filename)
+    return train
+#some refined task on train data
+def RefineTrain(train):
+    train = train[['Summary','Text']]
+    train['text_length'] = train['Text'].str.count(' ')
+    train['text_length'].describe()
+    train['summary_length'] = train['Summary'].str.count(' ')
+    train['summary_length'].describe()
+    train = train.loc[train['summary_length']<8]
+    train = train.loc[train['text_length']<30]
+    return train
+#put everything to lowercase and then replace undesired characters
+def ToLowercase(train, key1, key2, key3, key4, start, end):
+    train[key2] = train[key1].str.lower()
+    if start.strip():
+        #print("it's not an empty or blank string")
+        train[key4] =  start + ' ' +train[key3].str.replace('[^\w\s]','')+ ' ' + end
+    else:
+        train[key4] = train[key3].str.replace('[^\w\s]','')
+        #print("it's an empty or blank string")
+    return train
+
+# generate tokens 
+def GetTokens(max_features, filters):
+    if filters.strip():
+        print("it's not an empty or blank filters")
+        tok = tf.keras.preprocessing.text.Tokenizer(num_words=max_features, filters = '*') #tokenizer step
+    else:
+        tok = tf.keras.preprocessing.text.Tokenizer(num_words=max_features) #tokenizer step   
+    return tok
+
+# fit tokens to cleaned text and create sequences 
+def FitTokens(tok, tf_train, key1, key2):
+    tok.fit_on_texts(list(tf_train[key1].astype(str))) #fit to cleaned text
+    tf_train=tok.texts_to_sequences(list(tf_train[key2].astype(str))) #this is how we create sequences
+    return tf_train
+    
+#####################Driver Code################################################################
+train = LoadFile('reviews.csv')
 train.head()
-train = train[['Summary','Text']]
-train['text_length'] = train['Text'].str.count(' ')
-train['text_length'].describe()
-train['summary_length'] = train['Summary'].str.count(' ')
-train['summary_length'].describe()
-train = train.loc[train['summary_length']<8]
-train = train.loc[train['text_length']<30]
+train = RefineTrain(train)
 print(train.shape)
 print(train.head())
+train = ToLowercase(train, 'Text', 'text_lower', 'text_lower', 'text_no_punctuation','','')
+train = ToLowercase(train, 'Summary', 'summary_lower', 'summary_lower', 'summary_no_punctuation','_start_','_end_')
 # NOTICE THAT WE ADD "_start_" and "_end_" EXACTLY AT THE BEGINNING AND THE END OF EACH SENTENCE TO HAVE SOME KIND OF'DELIMITERS' 
 #THAT WILL TELL OUR DECODER TO START AND FINISH. BECAUSE WE DON'T HAVE GENERAL SIGNALS OF START AND FINISH IN NATURAL LANGUAGE. BASICALLY '_end_' REFLECTS THE POINT IN WHICH OUR OUTPUT SENTENCE IS MORE LIKELY TO END.
-train['text_lower'] = train['Text'].str.lower()
-train['text_no_punctuation'] = train['text_lower'].str.replace('[^\w\s]','')
+#train['text_lower'] = train['Text'].str.lower()
+#train['text_no_punctuation'] = train['text_lower'].str.replace('[^\w\s]','')
 #train['english_no_stopwords'] = train['english_no_punctuation'].apply(lambda x: ' '.join([word for word in x.split() if word not in (stop)]))
 #train["english_no_stopwords"] = train["english_no_stopwords"].fillna("fillna")
 #train["english_no_stopwords"] = train["english_no_stopwords"] 
-train['summary_lower'] = train["Summary"].str.lower()
-train['summary_no_punctuation'] =  '_start_' + ' ' +train['summary_lower'].str.replace('[^\w\s]','')+ ' ' +'_end_'
+#train['summary_lower'] = train["Summary"].str.lower()
+#train['summary_no_punctuation'] =  '_start_' + ' ' +train['summary_lower'].str.replace('[^\w\s]','')+ ' ' +'_end_'
 
 max_features1 = 5000
 maxlen1 = 30
@@ -43,15 +80,19 @@ maxlen1 = 30
 max_features2 = 5000
 maxlen2 = 8
 
-tok1 = tf.keras.preprocessing.text.Tokenizer(num_words=max_features1) 
-tok1.fit_on_texts(list(train['text_no_punctuation'].astype(str))) #fit to cleaned text
-tf_train_text =tok1.texts_to_sequences(list(train['text_no_punctuation'].astype(str)))
+#tok1 = tf.keras.preprocessing.text.Tokenizer(num_words=max_features1) 
+tok1 = GetTokens(max_features1, '')
+#tok1.fit_on_texts(list(train['text_no_punctuation'].astype(str))) #fit to cleaned text
+#tf_train_text =tok1.texts_to_sequences(list(train['text_no_punctuation'].astype(str)))
+tf_train_text = FitTokens(tok1, train, 'text_no_punctuation', 'text_no_punctuation')
 tf_train_text =tf.keras.preprocessing.sequence.pad_sequences(tf_train_text, maxlen=maxlen1) #let's execute pad step 
 #the processing has to be done for both 
 #two different tokenizers
-tok2 = tf.keras.preprocessing.text.Tokenizer(num_words=max_features2, filters = '*') 
-tok2.fit_on_texts(list(train['summary_no_punctuation'].astype(str))) #fit to cleaned text
-tf_train_summary = tok2.texts_to_sequences(list(train['summary_no_punctuation'].astype(str)))
+#tok2 = tf.keras.preprocessing.text.Tokenizer(num_words=max_features2, filters = '*') 
+tok2 = GetTokens(max_features2, '*')
+#tok2.fit_on_texts(list(train['summary_no_punctuation'].astype(str))) #fit to cleaned text
+#tf_train_summary = tok2.texts_to_sequences(list(train['summary_no_punctuation'].astype(str)))
+tf_train_summary = FitTokens(tok2, train, 'summary_no_punctuation', 'summary_no_punctuation')
 tf_train_summary = tf.keras.preprocessing.sequence.pad_sequences(tf_train_summary, maxlen=maxlen2, padding ='post')
 
 
@@ -129,9 +170,15 @@ seq2seq_Model.summary()
 #Train Model
 
 batch_size = 64
-epochs = 5
+epochs = 2
+
 history = seq2seq_Model.fit([encoder_input_data, decoder_input_data], np.expand_dims(decoder_target_data, -1),
           batch_size=batch_size,  epochs=epochs ,  validation_split=0.12) 
+seq2seq_Model.save("seq2seq_subsample_1_epochs.h5")
+
+#---------------------------------Code should run on saved model file ----------------------------------------------------------------------------------
+seq2seq_Model = tf.keras.models.load_model('seq2seq_subsample_1_epochs.h5')
+
 #test_text = ['apparently they used too much synthetic flavors that it just burns your tongue also theres too much oil  almost made me chok']
 test_text = ['this stuff is awesome  for best flavor boil it in water drain the water add spice packet and then add hot water']
 #test_text = ['This dataset consists of reviews of fine foods from amazon. The data span a period of more than 10 years, including all ~500,000 reviews up to October 2012. Reviews include product and user information, ratings, and a plain text review. It also includes reviews from all other Amazon categories.']
